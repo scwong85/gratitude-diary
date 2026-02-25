@@ -1,0 +1,1615 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Gratitude Diary</title>
+  <meta name="description" content="Offline gratitude diary with streak tracking and photo attachments" />
+  <meta name="theme-color" content="#8ecae6" />
+
+  <!-- Inline manifest (keeps this as a single-file SPA) -->
+  <link rel="manifest" href="data:application/json;base64,eyJuYW1lIjoiR3JhdGl0dWRlIERpYXJ5Iiwic2hvcnRfbmFtZSI6IkdyYXRpdHVkZSIsInN0YXJ0X3VybCI6Ii4iLCJkaXNwbGF5Ijoic3RhbmRhbG9uZSIsImJhY2tncm91bmRfY29sb3IiOiIjZmZmZmZmIiwidGhlbWVfY29sb3IiOiIjOGVjYWU2IiwiaWNvbnMiOlt7InNyYyI6ImRhdGE6aW1hZ2Uvc3ZnK3htbCwlM0NzdmcgeG1sbnM9J2h0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnJyB3aWR0aD0nMTkyJyBoZWlnaHQ9JzE5Micgdmlld0JveD0nMCAwIDE5MiAxOTInJTNFJTNDcmVjdCBmaWxsPSclMjM4ZWNhZTYnIHdpZHRoPScxOTInIGhlaWdodD0nMTkyJy8lM0UlM0N0ZXh0IHg9Jzk2JyB5PScxMjAnIGZvbnQtc2l6ZT0nODAnIHRleHQtYW5jaG9yPSdtaWRkbGUnIGZpbGw9J3doaXRlJyUzRSVFMiU5QyVBOCUzQy90ZXh0JTNFJTNDL3N2ZyUzRSIsInNpemVzIjoiMTkyeDE5MiIsInR5cGUiOiJpbWFnZS9zdmcreG1sIn1dfQ==" />
+
+  <style>
+    :root {
+      /* Pastel uplifting palette */
+      --sky: #8ecae6;
+      --mint: #b8f2e6;
+      --lavender: #cdb4db;
+      --peach: #ffd6a5;
+      --pink: #ffafcc;
+      --lemon: #fdffb6;
+
+      --bg: #fbfbff;
+      --card: rgba(255, 255, 255, 0.9);
+      --ink: #263238;
+      --muted: #607d8b;
+      --border: rgba(38, 50, 56, 0.12);
+      --shadow: rgba(38, 50, 56, 0.12);
+
+      --radius-lg: 20px;
+      --radius-md: 14px;
+      --radius-sm: 10px;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: radial-gradient(1200px 600px at 20% 0%, var(--mint), transparent 60%),
+                  radial-gradient(1000px 600px at 80% 10%, var(--lavender), transparent 60%),
+                  linear-gradient(180deg, #ffffff, #f7fbff);
+      color: var(--ink);
+      min-height: 100vh;
+      padding-bottom: 92px;
+    }
+
+    /* Top bar */
+    .topbar {
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      background: rgba(255, 255, 255, 0.75);
+      backdrop-filter: blur(10px);
+      border-bottom: 1px solid var(--border);
+    }
+
+    .topbar-inner {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 14px 14px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-weight: 800;
+      letter-spacing: 0.2px;
+      font-size: 1.05rem;
+    }
+
+    .brand-badge {
+      width: 36px;
+      height: 36px;
+      border-radius: 12px;
+      background: linear-gradient(135deg, var(--sky), var(--pink));
+      display: grid;
+      place-items: center;
+      color: white;
+      box-shadow: 0 10px 22px rgba(142, 202, 230, 0.35);
+    }
+
+    .hamburger {
+      width: 44px;
+      height: 44px;
+      border-radius: 14px;
+      border: 1px solid var(--border);
+      background: rgba(255, 255, 255, 0.8);
+      cursor: pointer;
+      display: grid;
+      place-items: center;
+    }
+
+    .hamburger:active { transform: scale(0.98); }
+
+    .hamburger-lines {
+      width: 18px;
+      height: 14px;
+      position: relative;
+    }
+
+    .hamburger-lines span {
+      position: absolute;
+      left: 0;
+      right: 0;
+      height: 2px;
+      border-radius: 10px;
+      background: var(--ink);
+      opacity: 0.9;
+    }
+
+    .hamburger-lines span:nth-child(1) { top: 1px; }
+    .hamburger-lines span:nth-child(2) { top: 6px; }
+    .hamburger-lines span:nth-child(3) { top: 11px; }
+
+    /* Drawer */
+    .drawer-backdrop {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.35);
+      z-index: 150;
+      display: none;
+    }
+
+    .drawer-backdrop.open { display: block; }
+
+    .drawer {
+      position: fixed;
+      top: 0;
+      right: 0;
+      height: 100vh;
+      width: min(88vw, 330px);
+      background: rgba(255, 255, 255, 0.92);
+      backdrop-filter: blur(10px);
+      border-left: 1px solid var(--border);
+      box-shadow: -20px 0 50px rgba(0,0,0,0.18);
+      transform: translateX(102%);
+      transition: transform 0.25s ease;
+      z-index: 200;
+      padding: 18px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    .drawer.open { transform: translateX(0); }
+
+    .drawer-top {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+    }
+
+    .drawer-title { font-weight: 800; }
+
+    .drawer-close {
+      width: 40px;
+      height: 40px;
+      border-radius: 14px;
+      border: 1px solid var(--border);
+      background: rgba(255, 255, 255, 0.8);
+      cursor: pointer;
+      font-size: 1.2rem;
+      line-height: 1;
+    }
+
+    .drawer-stats {
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 14px;
+      background: linear-gradient(135deg, rgba(142, 202, 230, 0.25), rgba(255, 175, 204, 0.20));
+    }
+
+    .drawer-stats-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-top: 10px;
+      color: var(--muted);
+      font-size: 0.95rem;
+    }
+
+    .drawer-streak {
+      font-size: 1.8rem;
+      font-weight: 900;
+      color: var(--ink);
+    }
+
+    .drawer-nav {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      margin-top: 6px;
+    }
+
+    .drawer-nav button {
+      width: 100%;
+      text-align: left;
+      padding: 12px 12px;
+      border-radius: 14px;
+      border: 1px solid var(--border);
+      background: rgba(255,255,255,0.75);
+      cursor: pointer;
+      font-size: 1rem;
+    }
+
+    .drawer-nav button.active {
+      border-color: rgba(142, 202, 230, 0.8);
+      box-shadow: 0 12px 26px rgba(142, 202, 230, 0.18);
+      background: linear-gradient(135deg, rgba(142, 202, 230, 0.22), rgba(184, 242, 230, 0.18));
+    }
+
+    /* Main */
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 18px 14px;
+    }
+
+    .view { display: none; }
+    .view.active { display: block; }
+
+    .cards {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+      gap: 12px;
+      margin: 14px 0 18px;
+    }
+
+    .card {
+      border-radius: var(--radius-lg);
+      padding: 14px;
+      background: var(--card);
+      border: 1px solid var(--border);
+      box-shadow: 0 12px 26px var(--shadow);
+    }
+
+    .card .value {
+      font-size: 1.9rem;
+      font-weight: 900;
+      background: linear-gradient(135deg, var(--sky), var(--pink));
+      -webkit-background-clip: text;
+      background-clip: text;
+      color: transparent;
+    }
+
+    .card .label { color: var(--muted); margin-top: 4px; font-size: 0.95rem; }
+
+    /* Calendar */
+    .calendar-shell {
+      border-radius: var(--radius-lg);
+      background: var(--card);
+      border: 1px solid var(--border);
+      box-shadow: 0 14px 34px rgba(38, 50, 56, 0.10);
+      overflow: hidden;
+    }
+
+    .calendar-top {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      padding: 14px 14px;
+      background: linear-gradient(135deg, rgba(253, 255, 182, 0.35), rgba(255, 214, 165, 0.25));
+      border-bottom: 1px solid var(--border);
+    }
+
+    .month-title {
+      font-size: 1.15rem;
+      font-weight: 900;
+      letter-spacing: 0.2px;
+    }
+
+    .month-btn {
+      border: 1px solid var(--border);
+      background: rgba(255,255,255,0.9);
+      padding: 10px 12px;
+      border-radius: 14px;
+      cursor: pointer;
+      font-weight: 700;
+    }
+
+    .calendar-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 10px;
+      padding: 14px;
+    }
+
+    .cal-head {
+      text-align: center;
+      font-weight: 800;
+      color: var(--muted);
+      font-size: 0.9rem;
+      padding: 6px 0 8px;
+    }
+
+    .cal-day {
+      min-height: 92px;
+      border-radius: 18px;
+      border: 1px solid var(--border);
+      background: rgba(255,255,255,0.8);
+      padding: 10px;
+      cursor: pointer;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      transition: transform 0.15s ease, box-shadow 0.15s ease;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .cal-day:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 14px 28px rgba(38, 50, 56, 0.12);
+    }
+
+    .cal-day.blank { border-color: transparent; background: transparent; cursor: default; box-shadow: none; }
+
+    .cal-day.today {
+      border-color: rgba(142, 202, 230, 0.9);
+      box-shadow: 0 12px 24px rgba(142, 202, 230, 0.18);
+    }
+
+    .cal-day.has-entry {
+      background: linear-gradient(135deg, rgba(255, 175, 204, 0.22), rgba(253, 255, 182, 0.22));
+      border-color: rgba(255, 175, 204, 0.55);
+    }
+
+    .cal-day-top {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 8px;
+    }
+
+    .day-num { font-weight: 900; font-size: 1.05rem; }
+    .mood { font-size: 1.2rem; }
+
+    .thumb {
+      width: 100%;
+      height: 48px;
+      border-radius: 14px;
+      object-fit: cover;
+      border: 1px solid rgba(0,0,0,0.05);
+      background: rgba(0,0,0,0.04);
+    }
+
+    .entry-snippet {
+      font-size: 0.78rem;
+      color: rgba(38, 50, 56, 0.80);
+      line-height: 1.25;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+      min-height: 0;
+    }
+
+    /* Entries list */
+    .search {
+      width: 100%;
+      padding: 12px 14px;
+      border-radius: 16px;
+      border: 1px solid var(--border);
+      background: rgba(255,255,255,0.9);
+      font-size: 1rem;
+      margin-bottom: 12px;
+    }
+
+    .entry-card {
+      border-radius: var(--radius-lg);
+      background: var(--card);
+      border: 1px solid var(--border);
+      padding: 14px;
+      box-shadow: 0 12px 26px rgba(38, 50, 56, 0.10);
+      margin-bottom: 12px;
+    }
+
+    .entry-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      margin-bottom: 10px;
+    }
+
+    .entry-date { font-weight: 900; color: #284b63; }
+
+    .icon-btn {
+      border: 1px solid var(--border);
+      background: rgba(255,255,255,0.8);
+      padding: 8px 10px;
+      border-radius: 14px;
+      cursor: pointer;
+      font-size: 1rem;
+    }
+
+    .entry-text { line-height: 1.55; color: rgba(38, 50, 56, 0.92); white-space: pre-wrap; }
+
+    .entry-photo {
+      width: 100%;
+      border-radius: 18px;
+      margin-top: 10px;
+      object-fit: cover;
+      max-height: 360px;
+      border: 1px solid rgba(0,0,0,0.06);
+    }
+
+    /* Modal */
+    .modal {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.55);
+      z-index: 300;
+      padding: 16px;
+    }
+
+    .modal.active {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .modal-content {
+      width: 100%;
+      max-width: 720px;
+      max-height: 92vh;
+      overflow-y: auto;
+      background: rgba(255,255,255,0.94);
+      border: 1px solid var(--border);
+      border-radius: 26px;
+      box-shadow: 0 25px 70px rgba(0,0,0,0.28);
+    }
+
+    .modal-head {
+      padding: 16px 16px 10px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+    }
+
+    .modal-head h2 { font-size: 1.15rem; font-weight: 950; }
+
+    .modal-close {
+      width: 44px;
+      height: 44px;
+      border-radius: 16px;
+      border: 1px solid var(--border);
+      background: rgba(255,255,255,0.9);
+      cursor: pointer;
+      font-size: 1.35rem;
+      line-height: 1;
+    }
+
+    .modal-body { padding: 0 16px 16px; }
+
+    .section {
+      border: 1px solid var(--border);
+      background: rgba(255,255,255,0.9);
+      border-radius: 20px;
+      padding: 14px;
+      margin-top: 12px;
+    }
+
+    .section-title {
+      font-weight: 900;
+      margin-bottom: 10px;
+      color: rgba(38, 50, 56, 0.92);
+    }
+
+    textarea {
+      width: 100%;
+      min-height: 160px;
+      border-radius: 18px;
+      border: 1px solid var(--border);
+      padding: 12px;
+      font-size: 1rem;
+      font-family: inherit;
+      background: rgba(255,255,255,0.98);
+      resize: vertical;
+      outline: none;
+    }
+
+    textarea:focus {
+      border-color: rgba(142, 202, 230, 0.9);
+      box-shadow: 0 0 0 4px rgba(142, 202, 230, 0.18);
+    }
+
+    .moods {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .mood-btn {
+      font-size: 1.35rem;
+      border-radius: 16px;
+      padding: 10px 12px;
+      border: 1px solid var(--border);
+      background: rgba(255,255,255,0.95);
+      cursor: pointer;
+      transition: transform 0.12s ease;
+    }
+
+    .mood-btn.selected {
+      border-color: rgba(255, 175, 204, 0.85);
+      box-shadow: 0 12px 24px rgba(255, 175, 204, 0.18);
+      transform: translateY(-1px);
+      background: linear-gradient(135deg, rgba(255, 175, 204, 0.18), rgba(253, 255, 182, 0.18));
+    }
+
+    .prompts {
+      display: grid;
+      gap: 8px;
+    }
+
+    .prompt {
+      border: 1px solid var(--border);
+      background: rgba(255,255,255,0.95);
+      padding: 10px 12px;
+      border-radius: 16px;
+      cursor: pointer;
+      color: rgba(38, 50, 56, 0.90);
+    }
+
+    .prompt:hover { border-color: rgba(142, 202, 230, 0.85); }
+
+    .photo-row {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 10px;
+    }
+
+    .photo-actions {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .btn {
+      border: 1px solid var(--border);
+      background: rgba(255,255,255,0.92);
+      padding: 12px 14px;
+      border-radius: 18px;
+      cursor: pointer;
+      font-weight: 900;
+    }
+
+    .btn.primary {
+      border-color: rgba(142, 202, 230, 0.85);
+      background: linear-gradient(135deg, rgba(142, 202, 230, 0.25), rgba(184, 242, 230, 0.18));
+    }
+
+    .btn.danger {
+      border-color: rgba(255, 99, 132, 0.50);
+      background: linear-gradient(135deg, rgba(255, 99, 132, 0.10), rgba(255, 175, 204, 0.14));
+    }
+
+    .photo-preview {
+      width: 100%;
+      border-radius: 22px;
+      border: 1px solid rgba(0,0,0,0.06);
+      max-height: 380px;
+      object-fit: cover;
+      display: none;
+      background: rgba(0,0,0,0.03);
+    }
+
+    .empty {
+      text-align: center;
+      color: var(--muted);
+      padding: 30px 10px;
+    }
+
+    /* Floating add */
+    .fab {
+      position: fixed;
+      right: 18px;
+      bottom: 18px;
+      width: 60px;
+      height: 60px;
+      border-radius: 22px;
+      border: 1px solid rgba(255,255,255,0.55);
+      background: linear-gradient(135deg, var(--sky), var(--pink));
+      color: white;
+      font-size: 2rem;
+      font-weight: 900;
+      cursor: pointer;
+      box-shadow: 0 18px 40px rgba(255, 175, 204, 0.30);
+      z-index: 120;
+    }
+
+    .fab:active { transform: translateY(1px); }
+
+    /* Responsive tweaks */
+    @media (max-width: 860px) {
+      .calendar-grid { gap: 8px; }
+      .cal-day { min-height: 84px; padding: 9px; border-radius: 16px; }
+      .thumb { height: 42px; border-radius: 12px; }
+    }
+
+    @media (max-width: 520px) {
+      .cal-head { font-size: 0.82rem; }
+      .cal-day { min-height: 74px; padding: 8px; }
+      .day-num { font-size: 0.98rem; }
+      .entry-snippet { display: none; }
+      .thumb { height: 38px; }
+    }
+  </style>
+</head>
+
+<body>
+  <div class="topbar">
+    <div class="topbar-inner">
+      <div class="brand">
+        <div class="brand-badge">✨</div>
+        <div>Gratitude Diary</div>
+      </div>
+
+      <button class="hamburger" id="menuBtn" aria-label="Open menu">
+        <div class="hamburger-lines" aria-hidden="true">
+          <span></span><span></span><span></span>
+        </div>
+      </button>
+    </div>
+  </div>
+
+  <div class="drawer-backdrop" id="drawerBackdrop"></div>
+
+  <aside class="drawer" id="drawer" aria-label="Menu">
+    <div class="drawer-top">
+      <div class="drawer-title">Menu</div>
+      <button class="drawer-close" id="drawerClose" aria-label="Close menu">×</button>
+    </div>
+
+    <div class="drawer-stats">
+      <div style="display:flex; align-items:center; justify-content:space-between; gap:10px;">
+        <div style="font-weight:900;">🔥 Current streak</div>
+        <div class="drawer-streak" id="drawerStreak">0</div>
+      </div>
+      <div class="drawer-stats-row">
+        <div>Total entries</div>
+        <div id="drawerTotal">0</div>
+      </div>
+      <div class="drawer-stats-row">
+        <div>❄️ Freeze tokens</div>
+        <div id="drawerFreeze">0</div>
+      </div>
+    </div>
+
+    <nav class="drawer-nav">
+      <button class="active" data-view="home">📅 Calendar</button>
+      <button data-view="entries">📖 Entries</button>
+      <button data-view="stats">📊 Stats</button>
+      <button data-view="settings">⚙️ Data</button>
+    </nav>
+
+    <div style="margin-top:auto; color:var(--muted); font-size:0.9rem;">
+      Offline-first. Export your data regularly.
+    </div>
+  </aside>
+
+  <main class="container">
+    <!-- HOME -->
+    <section class="view active" id="home">
+      <div class="cards">
+        <div class="card">
+          <div class="value" id="currentStreak">0</div>
+          <div class="label">Current streak</div>
+        </div>
+        <div class="card">
+          <div class="value" id="totalEntries">0</div>
+          <div class="label">Total entries</div>
+        </div>
+        <div class="card">
+          <div class="value" id="freezeTokensDisplay">0</div>
+          <div class="label">❄️ Freeze tokens</div>
+        </div>
+        <div class="card">
+          <div class="value" id="longestStreak">0</div>
+          <div class="label">Longest streak</div>
+        </div>
+      </div>
+
+      <div id="milestoneContainer"></div>
+
+      <div class="calendar-shell">
+        <div class="calendar-top">
+          <button class="month-btn" id="prevMonth">← Prev</button>
+          <div class="month-title" id="currentMonth">Month Year</div>
+          <button class="month-btn" id="nextMonth">Next →</button>
+        </div>
+
+        <div class="calendar-grid" id="calendarGrid">
+          <!-- headers + days injected -->
+        </div>
+      </div>
+    </section>
+
+    <!-- ENTRIES -->
+    <section class="view" id="entries">
+      <input class="search" id="searchBox" type="text" placeholder="Search entries..." />
+      <div id="entriesList"></div>
+    </section>
+
+    <!-- STATS -->
+    <section class="view" id="stats">
+      <div class="cards">
+        <div class="card">
+          <div class="value" id="thisMonthEntries">0</div>
+          <div class="label">This month</div>
+        </div>
+        <div class="card">
+          <div class="value" id="photoCount">0</div>
+          <div class="label">Photos added</div>
+        </div>
+        <div class="card">
+          <div class="value" id="favoritesCount">0</div>
+          <div class="label">Favorites</div>
+        </div>
+      </div>
+
+      <div class="card" style="margin-top:12px;">
+        <div style="font-weight:900; margin-bottom:10px;">On this day</div>
+        <div id="onThisDay" style="color:var(--muted);"></div>
+      </div>
+    </section>
+
+    <!-- SETTINGS (DATA) -->
+    <section class="view" id="settings">
+      <div class="card">
+        <div style="font-weight:900; margin-bottom:10px;">Import / Export</div>
+        <button class="btn primary" id="exportBtn" style="width:100%; margin-bottom:10px;">📤 Export all data (ZIP)</button>
+        <button class="btn" id="importBtn" style="width:100%;">📥 Import data (ZIP)</button>
+        <input type="file" id="importFile" accept=".zip" style="display:none;" />
+      </div>
+
+      <div class="card" style="margin-top:12px;">
+        <div style="font-weight:900; margin-bottom:10px;">About</div>
+        <div style="color:var(--muted); line-height:1.55;">
+          A simple offline gratitude diary with streaks, mood tags, one photo per day, and export/import.
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- ENTRY MODAL -->
+  <div class="modal" id="entryModal" aria-hidden="true">
+    <div class="modal-content">
+      <div class="modal-head">
+        <h2 id="modalTitle">Gratitude</h2>
+        <button class="modal-close" id="closeModal" aria-label="Close">×</button>
+      </div>
+
+      <div class="modal-body">
+        <div class="section">
+          <div class="section-title">💡 Need inspiration? Tap a prompt</div>
+          <div class="prompts" id="promptList"></div>
+        </div>
+
+        <div class="section">
+          <div class="section-title">What are you grateful for?</div>
+          <textarea id="entryText" placeholder="Today I'm grateful for..."></textarea>
+        </div>
+
+        <div class="section">
+          <div class="section-title">How are you feeling?</div>
+          <div class="moods" id="moodSelector"></div>
+        </div>
+
+        <div class="section">
+          <div class="section-title">Photo (optional)</div>
+          <div class="photo-row">
+            <div class="photo-actions">
+              <button class="btn" id="choosePhotoBtn">📷 Choose photo</button>
+              <button class="btn danger" id="removePhotoBtn" style="display:none;">Remove photo</button>
+            </div>
+
+            <input type="file" id="photoInput" accept="image/*" style="display:none;" />
+            <img id="photoPreview" class="photo-preview" alt="Photo preview" />
+          </div>
+        </div>
+
+        <div class="section">
+          <button class="btn primary" id="saveEntry" style="width:100%;">Save entry</button>
+          <button class="btn danger" id="deleteEntryBtn" style="width:100%; margin-top:10px; display:none;">🗑️ Delete entry</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <button class="fab" id="fab" aria-label="Add entry">+</button>
+
+  <!-- JSZip for import/export -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+  <script>
+    /*********************
+     * Offline data model
+     *********************/
+    const DB_NAME = 'gratitudeDiary';
+    const DB_VERSION = 1;
+    let db;
+
+    function initDB() {
+      return new Promise((resolve, reject) => {
+        const request = indexedDB.open(DB_NAME, DB_VERSION);
+        request.onerror = () => reject(request.error);
+        request.onsuccess = () => { db = request.result; resolve(db); };
+        request.onupgradeneeded = (event) => {
+          db = event.target.result;
+          if (!db.objectStoreNames.contains('entries')) {
+            const store = db.createObjectStore('entries', { keyPath: 'date' });
+            store.createIndex('text', 'text', { unique: false });
+            store.createIndex('favorite', 'favorite', { unique: false });
+          }
+        };
+      });
+    }
+
+    function tx(storeName, mode = 'readonly') {
+      return db.transaction([storeName], mode).objectStore(storeName);
+    }
+
+    function saveEntryToDB(entry) {
+      return new Promise((resolve, reject) => {
+        const request = tx('entries', 'readwrite').put(entry);
+        request.onsuccess = () => resolve();
+        request.onerror = () => reject(request.error);
+      });
+    }
+
+    function getEntry(dateKey) {
+      return new Promise((resolve, reject) => {
+        const request = tx('entries', 'readonly').get(dateKey);
+        request.onsuccess = () => resolve(request.result);
+        request.onerror = () => reject(request.error);
+      });
+    }
+
+    function getAllEntries() {
+      return new Promise((resolve, reject) => {
+        const request = tx('entries', 'readonly').getAll();
+        request.onsuccess = () => resolve(request.result || []);
+        request.onerror = () => reject(request.error);
+      });
+    }
+
+    function deleteEntry(dateKey) {
+      return new Promise((resolve, reject) => {
+        const request = tx('entries', 'readwrite').delete(dateKey);
+        request.onsuccess = () => resolve();
+        request.onerror = () => reject(request.error);
+      });
+    }
+
+    /*********************
+     * Date helpers (no UTC shift)
+     *********************/
+    const pad2 = (n) => String(n).padStart(2, '0');
+
+    function dateToKey(d) {
+      const y = d.getFullYear();
+      const m = pad2(d.getMonth() + 1);
+      const day = pad2(d.getDate());
+      return `${y}-${m}-${day}`;
+    }
+
+    function keyToDate(key) {
+      const [y, m, d] = key.split('-').map(Number);
+      return new Date(y, m - 1, d);
+    }
+
+    function formatDateDisplay(d) {
+      return d.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+    }
+
+    function isToday(d) {
+      const t = new Date();
+      return d.getFullYear() === t.getFullYear() && d.getMonth() === t.getMonth() && d.getDate() === t.getDate();
+    }
+
+    /*********************
+     * App state
+     *********************/
+    let currentDate = new Date();
+    let currentView = 'home';
+    let editingDate = null;
+    let selectedMood = null;
+    let selectedPhoto = null;
+
+    let settings = {
+      freezeTokens: 0,
+      longestStreak: 0
+    };
+
+    const gratitudePrompts = [
+      "A small win you had today",
+      "A person you appreciate",
+      "A comfort you often overlook",
+      "Something that made you smile",
+      "A moment of calm",
+      "Something your body did for you today",
+      "A lesson you learned recently",
+      "A place that feels safe",
+      "Something you are excited about",
+      "A kind thing someone did"
+    ];
+
+    const moods = [
+      { emoji: '😊', name: 'Joyful' },
+      { emoji: '🌱', name: 'Peaceful' },
+      { emoji: '💪', name: 'Accomplished' },
+      { emoji: '❤️', name: 'Loved' },
+      { emoji: '🌟', name: 'Inspired' },
+      { emoji: '😌', name: 'Content' }
+    ];
+
+    /*********************
+     * Drawer + navigation
+     *********************/
+    function openDrawer() {
+      document.getElementById('drawer').classList.add('open');
+      document.getElementById('drawerBackdrop').classList.add('open');
+    }
+
+    function closeDrawer() {
+      document.getElementById('drawer').classList.remove('open');
+      document.getElementById('drawerBackdrop').classList.remove('open');
+    }
+
+    function switchView(viewName) {
+      document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+      document.getElementById(viewName).classList.add('active');
+      currentView = viewName;
+
+      // update active menu item
+      document.querySelectorAll('.drawer-nav button').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.view === viewName);
+      });
+
+      if (viewName === 'entries') renderEntriesList(document.getElementById('searchBox').value || '');
+      if (viewName === 'stats') { updateStats(); showOnThisDay(); }
+      closeDrawer();
+    }
+
+    /*********************
+     * Calendar rendering
+     *********************/
+    async function renderCalendar() {
+      const year = currentDate.getFullYear();
+      const month = currentDate.getMonth();
+
+      document.getElementById('currentMonth').textContent =
+        new Date(year, month, 1).toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+
+      const grid = document.getElementById('calendarGrid');
+      grid.innerHTML = '';
+
+      // headers
+      ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'].forEach(d => {
+        const h = document.createElement('div');
+        h.className = 'cal-head';
+        h.textContent = d;
+        // grid.appendChild(h);
+      });
+
+      const firstDow = new Date(year, month, 1).getDay();
+      const daysInMonth = new Date(year, month + 1, 0).getDate();
+
+      for (let i = 0; i < firstDow; i++) {
+        const blank = document.createElement('div');
+        blank.className = 'cal-day blank';
+        grid.appendChild(blank);
+      }
+
+      // Fetch all entries once (performance)
+      const entries = await getAllEntries();
+      const byDate = new Map(entries.map(e => [e.date, e]));
+
+      for (let day = 1; day <= daysInMonth; day++) {
+        const d = new Date(year, month, day);
+        const key = dateToKey(d);
+        const entry = byDate.get(key);
+
+        const cell = document.createElement('div');
+        cell.className = 'cal-day';
+
+        if (isToday(d)) cell.classList.add('today');
+        if (entry) cell.classList.add('has-entry');
+
+        const top = document.createElement('div');
+        top.className = 'cal-day-top';
+
+        const dn = document.createElement('div');
+        dn.className = 'day-num';
+        dn.textContent = String(day);
+
+        const mood = document.createElement('div');
+        mood.className = 'mood';
+        mood.textContent = entry?.mood || '';
+
+        top.appendChild(dn);
+        top.appendChild(mood);
+        cell.appendChild(top);
+
+        if (entry?.photo) {
+          const img = document.createElement('img');
+          img.className = 'thumb';
+          img.src = entry.photo;
+          img.alt = 'Photo';
+          cell.appendChild(img);
+        }
+
+        if (entry?.text) {
+          const snip = document.createElement('div');
+          snip.className = 'entry-snippet';
+          snip.textContent = entry.text;
+          cell.appendChild(snip);
+        }
+
+        cell.addEventListener('click', () => openEntryModal(d));
+        grid.appendChild(cell);
+      }
+    }
+
+    function changeMonth(delta) {
+      currentDate.setMonth(currentDate.getMonth() + delta);
+      renderCalendar();
+    }
+
+    /*********************
+     * Modal
+     *********************/
+    function renderPrompts() {
+      const container = document.getElementById('promptList');
+      // pick 4 random prompts
+      const picks = [...gratitudePrompts].sort(() => Math.random() - 0.5).slice(0, 4);
+      container.innerHTML = '';
+      picks.forEach(p => {
+        const el = document.createElement('div');
+        el.className = 'prompt';
+        el.textContent = p;
+        el.addEventListener('click', () => {
+          const ta = document.getElementById('entryText');
+          if (!ta.value.trim()) ta.value = p + '...';
+          ta.focus();
+        });
+        container.appendChild(el);
+      });
+    }
+
+    function renderMoodSelector() {
+      const container = document.getElementById('moodSelector');
+      container.innerHTML = '';
+      moods.forEach(m => {
+        const btn = document.createElement('button');
+        btn.className = 'mood-btn';
+        btn.type = 'button';
+        btn.textContent = m.emoji;
+        btn.title = m.name;
+        btn.addEventListener('click', () => {
+          selectedMood = m.emoji;
+          updateMoodSelector();
+        });
+        container.appendChild(btn);
+      });
+      updateMoodSelector();
+    }
+
+    function updateMoodSelector() {
+      document.querySelectorAll('.mood-btn').forEach(btn => {
+        btn.classList.toggle('selected', btn.textContent === selectedMood);
+      });
+    }
+
+    async function openEntryModal(dateObj) {
+      editingDate = dateObj;
+      const key = dateToKey(dateObj);
+
+      document.getElementById('modalTitle').textContent = isToday(dateObj) ? "Today's Gratitude" : formatDateDisplay(dateObj);
+
+      renderPrompts();
+
+      const entry = await getEntry(key);
+
+      // Reset
+      document.getElementById('entryText').value = '';
+      selectedMood = null;
+      selectedPhoto = null;
+      updateMoodSelector();
+      setPhotoPreview(null);
+
+      if (entry) {
+        document.getElementById('entryText').value = entry.text || '';
+        selectedMood = entry.mood || null;
+        selectedPhoto = entry.photo || null;
+        updateMoodSelector();
+        setPhotoPreview(selectedPhoto);
+        document.getElementById('deleteEntryBtn').style.display = 'block';
+      } else {
+        document.getElementById('deleteEntryBtn').style.display = 'none';
+      }
+
+      document.getElementById('entryModal').classList.add('active');
+      document.getElementById('entryModal').setAttribute('aria-hidden', 'false');
+
+      // Important: reset file input so selecting the same file twice still triggers change
+      const pi = document.getElementById('photoInput');
+      pi.value = '';
+    }
+
+    function closeEntryModal() {
+      document.getElementById('entryModal').classList.remove('active');
+      document.getElementById('entryModal').setAttribute('aria-hidden', 'true');
+      editingDate = null;
+      selectedMood = null;
+      selectedPhoto = null;
+      setPhotoPreview(null);
+    }
+
+    function setPhotoPreview(dataUrl) {
+      const preview = document.getElementById('photoPreview');
+      const removeBtn = document.getElementById('removePhotoBtn');
+
+      if (dataUrl) {
+        preview.src = dataUrl;
+        preview.style.display = 'block';
+        removeBtn.style.display = 'inline-block';
+      } else {
+        preview.src = '';
+        preview.style.display = 'none';
+        removeBtn.style.display = 'none';
+      }
+    }
+
+    async function saveEntry() {
+      const text = document.getElementById('entryText').value.trim();
+      if (!text) {
+        alert("Please write something you're grateful for.");
+        return;
+      }
+
+      const key = dateToKey(editingDate);
+
+      // Keep favorite if exists
+      const existing = await getEntry(key);
+      const entry = {
+        date: key,
+        text,
+        mood: selectedMood,
+        photo: selectedPhoto,
+        favorite: existing?.favorite || false,
+        timestamp: Date.now()
+      };
+
+      await saveEntryToDB(entry);
+      closeEntryModal();
+      await updateStats();
+      await renderCalendar();
+
+      if (currentView === 'entries') renderEntriesList(document.getElementById('searchBox').value || '');
+    }
+
+    async function deleteCurrentEntry() {
+      if (!editingDate) return;
+      if (!confirm('Delete this entry? This cannot be undone.')) return;
+
+      const key = dateToKey(editingDate);
+      await deleteEntry(key);
+      closeEntryModal();
+      await updateStats();
+      await renderCalendar();
+      if (currentView === 'entries') renderEntriesList(document.getElementById('searchBox').value || '');
+    }
+
+    /*********************
+     * Photo upload (fixed)
+     *********************/
+    function bindPhotoUpload() {
+      const chooseBtn = document.getElementById('choosePhotoBtn');
+      const input = document.getElementById('photoInput');
+
+      chooseBtn.addEventListener('click', () => {
+        // Reset value so same file triggers change
+        input.value = '';
+        input.click();
+      });
+
+      input.addEventListener('change', async (event) => {
+        const file = event.target.files && event.target.files[0];
+        if (!file) return;
+
+        // Basic safety: accept images only
+        if (!file.type || !file.type.startsWith('image/')) {
+          alert('Please select an image file.');
+          return;
+        }
+
+        // Convert to data URL
+        const dataUrl = await fileToDataUrl(file);
+        selectedPhoto = dataUrl;
+        setPhotoPreview(selectedPhoto);
+      });
+
+      document.getElementById('removePhotoBtn').addEventListener('click', () => {
+        selectedPhoto = null;
+        setPhotoPreview(null);
+      });
+    }
+
+    function fileToDataUrl(file) {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onerror = () => reject(reader.error);
+        reader.onload = () => resolve(reader.result);
+        reader.readAsDataURL(file);
+      });
+    }
+
+    /*********************
+     * Streaks and stats
+     *********************/
+    function loadSettings() {
+      const saved = localStorage.getItem('gratitudeSettings');
+      if (saved) settings = { ...settings, ...JSON.parse(saved) };
+    }
+
+    function saveSettings() {
+      localStorage.setItem('gratitudeSettings', JSON.stringify(settings));
+    }
+
+    function calculateStreak(dateKeysSet) {
+      if (dateKeysSet.size === 0) return { current: 0, longest: 0 };
+
+      const today = new Date();
+      const yesterday = new Date();
+      yesterday.setDate(yesterday.getDate() - 1);
+
+      const todayKey = dateToKey(today);
+      const yKey = dateToKey(yesterday);
+
+      let current = 0;
+      if (dateKeysSet.has(todayKey) || dateKeysSet.has(yKey)) {
+        current = 1;
+        let cursor = dateKeysSet.has(todayKey) ? new Date(today) : new Date(yesterday);
+        for (let i = 1; i < 3650; i++) {
+          cursor.setDate(cursor.getDate() - 1);
+          if (dateKeysSet.has(dateToKey(cursor))) current++;
+          else break;
+        }
+      }
+
+      // longest streak: sort keys and walk
+      const keys = Array.from(dateKeysSet).sort();
+      let longest = 1;
+      let run = 1;
+      for (let i = 1; i < keys.length; i++) {
+        const prev = keyToDate(keys[i - 1]);
+        const cur = keyToDate(keys[i]);
+        const diff = Math.round((cur - prev) / 86400000);
+        if (diff === 1) {
+          run++;
+          if (run > longest) longest = run;
+        } else {
+          run = 1;
+        }
+      }
+
+      return { current, longest };
+    }
+
+    async function updateStats() {
+      const entries = await getAllEntries();
+      const keySet = new Set(entries.map(e => e.date));
+      const streak = calculateStreak(keySet);
+
+      // freeze tokens: earn 1 per 7 streak days
+      settings.freezeTokens = Math.floor(streak.current / 7);
+
+      if (streak.longest > (settings.longestStreak || 0)) {
+        settings.longestStreak = streak.longest;
+      }
+      saveSettings();
+
+      const total = entries.length;
+      const photos = entries.filter(e => !!e.photo).length;
+      const favs = entries.filter(e => !!e.favorite).length;
+
+      const now = new Date();
+      const thisMonth = entries.filter(e => {
+        const d = keyToDate(e.date);
+        return d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth();
+      }).length;
+
+      // Update cards
+      document.getElementById('currentStreak').textContent = String(streak.current);
+      document.getElementById('totalEntries').textContent = String(total);
+      document.getElementById('freezeTokensDisplay').textContent = String(settings.freezeTokens);
+      document.getElementById('longestStreak').textContent = String(settings.longestStreak || 0);
+
+      document.getElementById('thisMonthEntries').textContent = String(thisMonth);
+      document.getElementById('photoCount').textContent = String(photos);
+      document.getElementById('favoritesCount').textContent = String(favs);
+
+      // Drawer
+      document.getElementById('drawerStreak').textContent = String(streak.current);
+      document.getElementById('drawerTotal').textContent = String(total);
+      document.getElementById('drawerFreeze').textContent = String(settings.freezeTokens);
+
+      checkMilestones(total);
+    }
+
+    function checkMilestones(totalEntries) {
+      const milestones = [7, 30, 50, 100, 365, 500, 1000];
+      const container = document.getElementById('milestoneContainer');
+      if (!milestones.includes(totalEntries)) {
+        container.innerHTML = '';
+        return;
+      }
+
+      const messages = {
+        7: '🎉 7 entries! Your habit is forming.',
+        30: '🌟 30 entries! A whole month of gratitude.',
+        50: '💎 50 entries! You are building something beautiful.',
+        100: '🏆 100 entries! Incredible consistency.',
+        365: '👑 1 year! Gratitude legend status.',
+        500: '🎊 500 entries! Wow.',
+        1000: '🌈 1000 entries! Truly inspiring.'
+      };
+
+      container.innerHTML = `
+        <div class="card" style="margin-bottom:12px; background: linear-gradient(135deg, rgba(142, 202, 230, 0.18), rgba(255, 175, 204, 0.16));">
+          <div style="font-weight:950; font-size:1.05rem;">${messages[totalEntries]}</div>
+          <div style="margin-top:6px; color:var(--muted);">Keep going — your future self will thank you.</div>
+        </div>
+      `;
+    }
+
+    /*********************
+     * Entries list
+     *********************/
+    async function renderEntriesList(searchTerm) {
+      const entries = await getAllEntries();
+      const container = document.getElementById('entriesList');
+
+      let list = entries.sort((a, b) => keyToDate(b.date) - keyToDate(a.date));
+      if (searchTerm) {
+        const q = searchTerm.toLowerCase();
+        list = list.filter(e => (e.text || '').toLowerCase().includes(q));
+      }
+
+      if (list.length === 0) {
+        container.innerHTML = `<div class="empty">📔 No entries found.</div>`;
+        return;
+      }
+
+      container.innerHTML = '';
+      list.forEach(entry => {
+        const card = document.createElement('div');
+        card.className = 'entry-card';
+
+        const head = document.createElement('div');
+        head.className = 'entry-head';
+
+        const left = document.createElement('div');
+        left.className = 'entry-date';
+        left.textContent = `${entry.mood || '✨'} ${formatDateDisplay(keyToDate(entry.date))}`;
+
+        const actions = document.createElement('div');
+        actions.style.display = 'flex';
+        actions.style.gap = '8px';
+
+        const favBtn = document.createElement('button');
+        favBtn.className = 'icon-btn';
+        favBtn.title = 'Favorite';
+        favBtn.textContent = entry.favorite ? '⭐' : '☆';
+        favBtn.addEventListener('click', async () => {
+          entry.favorite = !entry.favorite;
+          await saveEntryToDB(entry);
+          await updateStats();
+          renderEntriesList(document.getElementById('searchBox').value || '');
+        });
+
+        const editBtn = document.createElement('button');
+        editBtn.className = 'icon-btn';
+        editBtn.title = 'Edit';
+        editBtn.textContent = '✏️';
+        editBtn.addEventListener('click', () => openEntryModal(keyToDate(entry.date)));
+
+        const delBtn = document.createElement('button');
+        delBtn.className = 'icon-btn';
+        delBtn.title = 'Delete';
+        delBtn.textContent = '🗑️';
+        delBtn.addEventListener('click', async () => {
+          if (!confirm('Delete this entry?')) return;
+          await deleteEntry(entry.date);
+          await updateStats();
+          await renderCalendar();
+          renderEntriesList(document.getElementById('searchBox').value || '');
+        });
+
+        actions.appendChild(favBtn);
+        actions.appendChild(editBtn);
+        actions.appendChild(delBtn);
+
+        head.appendChild(left);
+        head.appendChild(actions);
+        card.appendChild(head);
+
+        const text = document.createElement('div');
+        text.className = 'entry-text';
+        text.textContent = entry.text || '';
+        card.appendChild(text);
+
+        if (entry.photo) {
+          const img = document.createElement('img');
+          img.className = 'entry-photo';
+          img.src = entry.photo;
+          img.alt = 'Entry photo';
+          card.appendChild(img);
+        }
+
+        container.appendChild(card);
+      });
+    }
+
+    /*********************
+     * On this day
+     *********************/
+    async function showOnThisDay() {
+      const entries = await getAllEntries();
+      const today = new Date();
+      const container = document.getElementById('onThisDay');
+
+      const matches = entries.filter(e => {
+        const d = keyToDate(e.date);
+        return d.getDate() === today.getDate() && d.getMonth() === today.getMonth() && d.getFullYear() !== today.getFullYear();
+      }).sort((a, b) => keyToDate(b.date) - keyToDate(a.date));
+
+      if (matches.length === 0) {
+        container.innerHTML = 'No entries from previous years on this day.';
+        return;
+      }
+
+      container.innerHTML = '';
+      matches.slice(0, 3).forEach(e => {
+        const wrap = document.createElement('div');
+        wrap.style.padding = '10px 0';
+        wrap.style.borderTop = '1px solid var(--border)';
+
+        const t = document.createElement('div');
+        t.style.fontWeight = '900';
+        t.textContent = `${e.mood || '✨'} ${formatDateDisplay(keyToDate(e.date))}`;
+
+        const p = document.createElement('div');
+        p.style.color = 'var(--muted)';
+        p.style.marginTop = '6px';
+        p.textContent = (e.text || '').slice(0, 180) + ((e.text || '').length > 180 ? '…' : '');
+
+        wrap.appendChild(t);
+        wrap.appendChild(p);
+        container.appendChild(wrap);
+      });
+    }
+
+    /*********************
+     * Import / Export (JSON + photos in ZIP)
+     *********************/
+    async function exportData() {
+      const entries = await getAllEntries();
+      const zip = new JSZip();
+
+      const textData = entries.map(entry => ({
+        date: entry.date,
+        text: entry.text,
+        mood: entry.mood,
+        favorite: !!entry.favorite,
+        timestamp: entry.timestamp,
+        hasPhoto: !!entry.photo
+      }));
+
+      zip.file('gratitude_data.json', JSON.stringify(textData, null, 2));
+
+      const photosFolder = zip.folder('photos');
+      entries.forEach(entry => {
+        if (!entry.photo) return;
+        const parts = entry.photo.split(',');
+        if (parts.length < 2) return;
+        const meta = parts[0] || '';
+        const base64 = parts[1];
+
+        // Determine extension (best effort)
+        let ext = 'jpg';
+        if (meta.includes('image/png')) ext = 'png';
+        if (meta.includes('image/webp')) ext = 'webp';
+
+        photosFolder.file(`${entry.date}.${ext}`, base64, { base64: true });
+      });
+
+      const blob = await zip.generateAsync({ type: 'blob' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `gratitude_diary_${dateToKey(new Date())}.zip`;
+      a.click();
+      URL.revokeObjectURL(url);
+    }
+
+    async function importData(event) {
+      const file = event.target.files && event.target.files[0];
+      if (!file) return;
+
+      if (!confirm('Import will merge with your existing entries. Continue?')) return;
+
+      const zip = await JSZip.loadAsync(file);
+      const jsonFile = zip.file('gratitude_data.json');
+      if (!jsonFile) {
+        alert('Invalid ZIP: gratitude_data.json not found.');
+        return;
+      }
+
+      const jsonText = await jsonFile.async('string');
+      const entries = JSON.parse(jsonText);
+
+      // Load photos into map by date key
+      const photoData = {};
+      const photosFolder = zip.folder('photos');
+      if (photosFolder) {
+        const photoFiles = photosFolder.file(/\.(jpg|jpeg|png|webp)$/i) || [];
+        for (const pf of photoFiles) {
+          const base64 = await pf.async('base64');
+          const filename = pf.name.split('/').pop();
+          const dateKey = filename.replace(/\.(jpg|jpeg|png|webp)$/i, '');
+          const ext = (filename.split('.').pop() || '').toLowerCase();
+          let mime = 'image/jpeg';
+          if (ext === 'png') mime = 'image/png';
+          if (ext === 'webp') mime = 'image/webp';
+          photoData[dateKey] = `data:${mime};base64,${base64}`;
+        }
+      }
+
+      for (const e of entries) {
+        const full = {
+          date: e.date,
+          text: e.text,
+          mood: e.mood || null,
+          favorite: !!e.favorite,
+          timestamp: e.timestamp || Date.now(),
+          photo: e.hasPhoto ? (photoData[e.date] || null) : null
+        };
+        await saveEntryToDB(full);
+      }
+
+      alert('Import complete.');
+      await updateStats();
+      await renderCalendar();
+      if (currentView === 'entries') renderEntriesList(document.getElementById('searchBox').value || '');
+    }
+
+    /*********************
+     * Boot
+     *********************/
+    document.addEventListener('DOMContentLoaded', async () => {
+      await initDB();
+      loadSettings();
+
+      // Drawer
+      document.getElementById('menuBtn').addEventListener('click', openDrawer);
+      document.getElementById('drawerClose').addEventListener('click', closeDrawer);
+      document.getElementById('drawerBackdrop').addEventListener('click', closeDrawer);
+      document.querySelectorAll('.drawer-nav button').forEach(btn => {
+        btn.addEventListener('click', () => switchView(btn.dataset.view));
+      });
+
+      // Calendar nav
+      document.getElementById('prevMonth').addEventListener('click', () => changeMonth(-1));
+      document.getElementById('nextMonth').addEventListener('click', () => changeMonth(1));
+
+      // Modal
+      document.getElementById('fab').addEventListener('click', () => openEntryModal(new Date()));
+      document.getElementById('closeModal').addEventListener('click', closeEntryModal);
+      document.getElementById('entryModal').addEventListener('click', (e) => { if (e.target.id === 'entryModal') closeEntryModal(); });
+
+      document.getElementById('saveEntry').addEventListener('click', saveEntry);
+      document.getElementById('deleteEntryBtn').addEventListener('click', deleteCurrentEntry);
+
+      // Photo
+      bindPhotoUpload();
+
+      // Entries search
+      document.getElementById('searchBox').addEventListener('input', (e) => renderEntriesList(e.target.value || ''));
+
+      // Export/import
+      document.getElementById('exportBtn').addEventListener('click', exportData);
+      document.getElementById('importBtn').addEventListener('click', () => document.getElementById('importFile').click());
+      document.getElementById('importFile').addEventListener('change', importData);
+
+      // First render
+      await updateStats();
+      await renderCalendar();
+      renderMoodSelector();
+      showOnThisDay();
+    });
+  </script>
+</body>
+</html>

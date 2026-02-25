@@ -204,6 +204,8 @@
       border-radius: var(--radius-lg); background: var(--card);
       border: 1px solid var(--border); box-shadow: 0 14px 34px rgba(38, 50, 56, 0.10);
       overflow: hidden;
+      position: relative; 
+      touch-action: pan-y; 
     }
     .calendar-top {
       display: flex; align-items: center; justify-content: space-between; gap: 10px;
@@ -217,6 +219,7 @@
     }
     .calendar-grid {
       display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; padding: 14px;
+      transition: transform 0.25s ease-out, opacity 0.2s ease-out; 
     }
     .cal-head {
       text-align: center; font-weight: 800; color: var(--muted); font-size: 0.9rem; padding: 6px 0 8px; display: none;
@@ -587,6 +590,7 @@
 
       await initDB();
       loadSettings();
+      initCalendarSwipe();
 
       // Drawer binds
       document.getElementById('menuBtn').addEventListener('click', () => openDrawer(false));
@@ -910,6 +914,71 @@
       }
       alert('Imported.'); location.reload();
     }
+
+    function initCalendarSwipe() {
+      const shell = document.getElementById('calendarShell');
+      const grid = document.getElementById('calendarGrid');
+      let startX = 0, currentX = 0;
+      const threshold = 50; // Minimum pixels to count as a deliberate swipe
+
+      // 1. Record starting position when user touches the screen
+      shell.addEventListener('touchstart', e => {
+        startX = e.touches[0].clientX;
+        grid.style.transition = 'none'; // Disable transition so grid follows finger instantly
+      }, {passive: true});
+
+      // 2. Track movement and move the grid slightly to give visual feedback
+      shell.addEventListener('touchmove', e => {
+        if(!startX) return;
+        currentX = e.touches[0].clientX - startX;
+        // Move the grid slightly with the finger (0.4 multiplier creates resistance)
+        grid.style.transform = `translateX(${currentX * 0.4}px)`;
+      }, {passive: true});
+
+      // 3. Determine if swipe was far enough when user lifts finger
+      shell.addEventListener('touchend', e => {
+        if(!startX) return;
+        
+        // Re-enable smooth transitions
+        grid.style.transition = 'transform 0.25s ease-out, opacity 0.2s ease-out';
+        
+        if (currentX > threshold) {
+          // Swiped Right -> Previous Month
+          grid.style.transform = 'translateX(30px)'; // Slide out right
+          grid.style.opacity = '0'; // Fade out
+          setTimeout(() => { 
+            changeMonth(-1); // Change data
+            grid.style.transform = 'translateX(-30px)'; // Reset to left side invisibly
+            setTimeout(() => { 
+              grid.style.transform = 'translateX(0)'; // Slide in to center
+              grid.style.opacity = '1'; // Fade in
+            }, 50); 
+          }, 200);
+          
+        } else if (currentX < -threshold) {
+          // Swiped Left -> Next Month
+          grid.style.transform = 'translateX(-30px)'; // Slide out left
+          grid.style.opacity = '0'; // Fade out
+          setTimeout(() => { 
+            changeMonth(1); // Change data
+            grid.style.transform = 'translateX(30px)'; // Reset to right side invisibly
+            setTimeout(() => { 
+              grid.style.transform = 'translateX(0)'; // Slide in to center
+              grid.style.opacity = '1'; // Fade in
+            }, 50); 
+          }, 200);
+          
+        } else {
+          // Swipe was too short -> Snap back to center
+          grid.style.transform = 'translateX(0)';
+          grid.style.opacity = '1';
+        }
+        
+        // Reset variables for next swipe
+        startX = 0; currentX = 0;
+      });
+    }
+
   </script>
 </body>
 </html>
